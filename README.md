@@ -7,6 +7,6 @@ Each decryption checks for corrupted outputs.
 # Usage:
 import vox
 
-ciphertext_b64, key_value = encrypt(plaintext: str)
+ciphertext, key = encrypt(plaintext: str)
 
-decrypt(ciphertext_b64, key_value)
+decrypt(ciphertext, key)
