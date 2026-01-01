@@ -1,6 +1,6 @@
-# Vox Encryption Module       v1.0
-# Documentation         jts.gg/vox       
-# License        r2.jts.gg/license
+#  Vox Encryption Module       v1.0
+#  Documentation         jts.gg/vox       
+#  License        r2.jts.gg/license
 
 import os
 import base64
