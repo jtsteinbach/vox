@@ -1,5 +1,8 @@
 # Vox Encryption Module (Uncrackable)
 
+Reusing keys destroys security integrity!
+Each decryption checks for corrupted outputs.
+
 # Usage:
 import vox
 
