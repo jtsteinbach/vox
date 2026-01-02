@@ -1,1 +1,1 @@
-from .vox import encrypt, decrypt
+from vox import encrypt, decrypt, keypair
