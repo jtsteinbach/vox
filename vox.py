@@ -37,7 +37,7 @@ def decrypt(ciphertext_b64: str, passkey: str) -> str:
     data = base64.b64decode(ciphertext_b64)
 
     if len(data) < SALT_LEN + TAG_LEN:
-        raise ValueError("Ciphertext too short")
+        raise ValueError("Invalid ciphertext")
 
     ct_bytes = data[:-(SALT_LEN + TAG_LEN)]
     salt = data[-(SALT_LEN + TAG_LEN):-TAG_LEN]
