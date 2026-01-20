@@ -36,7 +36,7 @@ Purpose:
 
 ### Encryption
 - Plaintext is XORed with the derived keystream
-- Equivalent to a stream cipher under correct keystream usage
+- Equivalent to a stream cipher
 
 ---
 
