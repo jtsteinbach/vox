@@ -8,6 +8,9 @@ encrypts via XOR, and provides integrity using HMAC-SHA256.
 
 ## Security Model
 
+### Threat Model
+- Assume ALL asymmetric standardized Encryption Algorithms/Schemas are compromised
+
 ### Key Derivation
 - Passkeys are processed using PBKDF2-HMAC-SHA256
 - 300,000 iterations
