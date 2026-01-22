@@ -2,7 +2,7 @@
 
 Vox is a password-based stream encryption library implemented in Python.
 It derives a cryptographic keystream from a passkey using a KDF and SHA-256,
-these keys are seamingly random and are the same length as the input data.
+these keys are seemingly random and are the same length as the input data.
 The input data is then encrypted using the keystream, via XOR, and finally provides 
 integrity using HMAC-SHA256. This encryption method is comparable to OTP (One Time Pad)
 
