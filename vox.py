@@ -57,6 +57,22 @@ def decrypt(ciphertext: bytes, passkey, asym: bool = False) -> str:
         return pt.decode("utf-8")
 
 
+def keypair():
+    # generates a simple public/private keypair
+
+    # private key is random
+    sk = os.urandom(32)
+
+    # public key is a hash of the private key
+    pk = hashlib.sha256(sk).digest()
+
+    # return both as base64 strings
+    return (
+        base64.b64encode(pk).decode("ascii"),
+        base64.b64encode(sk).decode("ascii")
+    )
+
+
 def _vox_encrypt_bytes(pt_bytes: bytes, passkey: bytes) -> bytes:
     # core symmetric encryption logic
 
@@ -103,22 +119,6 @@ def _vox_decrypt_bytes(ciphertext: bytes, passkey: bytes) -> bytes:
     # regenerate keystream and xor to recover plaintext
     enc_stream = _derive_keystream(master_key, salt, len(ct_bytes), ctx=b"enc")
     return bytes(a ^ b for a, b in zip(ct_bytes, enc_stream))
-
-
-def keypair():
-    # generates a simple public/private keypair
-
-    # private key is random
-    sk = os.urandom(32)
-
-    # public key is a hash of the private key
-    pk = hashlib.sha256(sk).digest()
-
-    # return both as base64 strings
-    return (
-        base64.b64encode(pk).decode("ascii"),
-        base64.b64encode(sk).decode("ascii")
-    )
 
 
 def _kem_encapsulate(pk_b64: str):
