@@ -1,10 +1,10 @@
-#  Vox Encryption Module        v1.6
+#  Vox Encryption Module        v1.7
 #  Documentation          jts.gg/vox
 #  License         r2.jts.gg/license
 #
 #  this module implements a misuse-resistant AEAD using:
-#    - HMAC-SHA256 (PRF)
-#    - PBKDF2-HMAC-SHA256 (key stretching)
+#    - HMAC-SHA512 (PRF)
+#    - PBKDF2-HMAC-SHA512 (key stretching)
 #    - HKDF-Expand (RFC 5869) (key separation)
 #
 #  security properties:
@@ -24,13 +24,37 @@ import os
 import hashlib
 import hmac
 import base64
-from typing import Optional
 
-SALT_LEN        = 32        # synthetic nonce length (SIV)
-TAG_LEN         = 32        # AEAD authentication tag length
+SALT_LEN        = 64        # synthetic nonce length (SIV)
+TAG_LEN         = 64        # AEAD authentication tag length
 KDF_ITERS       = 300_000   # PBKDF2 work factor
-KDF_KEY_LEN     = 32        # master key length
-KEM_LEN         = 32        # legacy asymmetric prefix length
+KDF_KEY_LEN     = 64        # master key length
+KEM_LEN         = 64        # legacy asymmetric prefix length
+
+# internal context cache
+# ensures PBKDF2 is executed once per key lifecycle
+
+_CTX_CACHE = {}
+
+# key setup context
+
+class VoxContext:
+    # holds stretched and separated keys
+
+    def __init__(self, passkey: bytes):
+        master = _kdf(passkey)
+
+        self.enc_key = _hkdf_expand(master, b"vox enc", 64)
+        self.mac_key = _hkdf_expand(master, b"vox mac", 64)
+
+# internal helper
+
+def _get_context(passkey: bytes) -> VoxContext:
+    ctx = _CTX_CACHE.get(passkey)
+    if ctx is None:
+        ctx = VoxContext(passkey)
+        _CTX_CACHE[passkey] = ctx
+    return ctx
 
 # public API
 
@@ -48,10 +72,12 @@ def encrypt(
 
     if asym:
         enc, shared = _kem_encapsulate(passkey)
-        ct = _aead_encrypt(pt, shared, associated_data)
+        ctx = _get_context(shared)
+        ct = _aead_encrypt(ctx, pt, associated_data)
         return enc + ct
 
-    return _aead_encrypt(pt, passkey.encode(), associated_data)
+    ctx = _get_context(passkey.encode())
+    return _aead_encrypt(ctx, pt, associated_data)
 
 
 def decrypt(
@@ -62,101 +88,76 @@ def decrypt(
     asym: bool = False
 ) -> str:
     # verifies authenticity before decryption
-    # decryption fails if authentication fails
 
     if asym:
         enc = ciphertext[:KEM_LEN]
         ct  = ciphertext[KEM_LEN:]
         shared = _kem_decapsulate(enc, passkey)
-        pt = _aead_decrypt(ct, shared, associated_data)
+        ctx = _get_context(shared)
+        pt = _aead_decrypt(ctx, ct, associated_data)
         return pt.decode("utf-8")
 
-    pt = _aead_decrypt(ciphertext, passkey.encode(), associated_data)
+    ctx = _get_context(passkey.encode())
+    pt = _aead_decrypt(ctx, ciphertext, associated_data)
     return pt.decode("utf-8")
 
 # AEAD core
 
 def _aead_encrypt(
+    ctx: VoxContext,
     plaintext: bytes,
-    passkey: bytes,
     associated_data: bytes
 ) -> bytes:
     # SIV-style AEAD construction
 
-    # a synthetic nonce is derived deterministically from the
-    # plaintext and associated data using a MAC.
-
-    # this provides nonce misuse resistance and removes reliance
-    # on external randomness for security.
-
-    master = _kdf(passkey)
-
-    # key separation using HKDF-Expand
-    # encryption and authentication keys are independent
-    enc_key = _hkdf_expand(master, b"vox enc", 32)
-    mac_key = _hkdf_expand(master, b"vox mac", 32)
-
-    # synthetic nonce (SIV)
     salt = hmac.new(
-        mac_key,
+        ctx.mac_key,
         associated_data + plaintext,
-        hashlib.sha256
+        hashlib.sha512
     ).digest()[:SALT_LEN]
 
-    # encryption using PRF-based keystream
-    stream = _derive_keystream(enc_key, salt, len(plaintext))
+    stream = _derive_keystream(ctx.enc_key, salt, len(plaintext))
     ciphertext = bytes(a ^ b for a, b in zip(plaintext, stream))
 
-    # authentication tag covers nonce, associated data, and ciphertext
     tag = hmac.new(
-        mac_key,
+        ctx.mac_key,
         salt + associated_data + ciphertext,
-        hashlib.sha256
+        hashlib.sha512
     ).digest()
 
     return salt + ciphertext + tag
 
+
 def _aead_decrypt(
+    ctx: VoxContext,
     data: bytes,
-    passkey: bytes,
     associated_data: bytes
 ) -> bytes:
     # verifies authentication prior to decryption
-    # this prevents chosen-ciphertext attacks
 
     salt = data[:SALT_LEN]
     tag  = data[-TAG_LEN:]
     ct   = data[SALT_LEN:-TAG_LEN]
 
-    master = _kdf(passkey)
-    enc_key = _hkdf_expand(master, b"vox enc", 32)
-    mac_key = _hkdf_expand(master, b"vox mac", 32)
-
     expected = hmac.new(
-        mac_key,
+        ctx.mac_key,
         salt + associated_data + ct,
-        hashlib.sha256
+        hashlib.sha512
     ).digest()
 
     if not hmac.compare_digest(tag, expected):
         raise ValueError("authentication failed")
 
-    stream = _derive_keystream(enc_key, salt, len(ct))
+    stream = _derive_keystream(ctx.enc_key, salt, len(ct))
     return bytes(a ^ b for a, b in zip(ct, stream))
 
 # key derivation
 
 def _kdf(passkey: bytes) -> bytes:
-    # PBKDF2-HMAC-SHA256 is used solely for key stretching
-
-    # it is not used for password storage or verification.
-    # the derived key is never stored or exposed.
-
-    # the static salt is domain-separating and does not weaken
-    # security under the defined threat model.
+    # PBKDF2-HMAC-SHA512 is used solely for key stretching
 
     return hashlib.pbkdf2_hmac(
-        "sha256",
+        "sha512",
         passkey,
         b"vox-static-salt-SS7419",
         KDF_ITERS,
@@ -166,7 +167,6 @@ def _kdf(passkey: bytes) -> bytes:
 
 def _hkdf_expand(prk: bytes, info: bytes, length: int) -> bytes:
     # HKDF-Expand as defined in RFC 5869
-    # provides provable key separation under the PRF assumption
 
     out = b""
     t = b""
@@ -176,7 +176,7 @@ def _hkdf_expand(prk: bytes, info: bytes, length: int) -> bytes:
         t = hmac.new(
             prk,
             t + info + bytes([counter]),
-            hashlib.sha256
+            hashlib.sha512
         ).digest()
         out += t
         counter += 1
@@ -190,40 +190,46 @@ def _derive_keystream(
     nonce: bytes,
     length: int
 ) -> bytes:
-    # PRF-based keystream generator
-    # security reduces to the PRF security of HMAC-SHA256
+    # PRF keystream generator
 
-    out = b""
-    state = nonce
+    out = bytearray()
+    counter = 0
 
     while len(out) < length:
-        state = hmac.new(key, state, hashlib.sha256).digest()
-        out += state
+        block = hmac.new(
+            key,
+            nonce + counter.to_bytes(4, "big"),
+            hashlib.sha512
+        ).digest()
+        out.extend(block)
+        counter += 1
 
-    return out[:length]
+    return bytes(out[:length])
 
-# !!! legacy asymmetric (non-standard) !!!
-# !!! does not provide forward secrecy and is excluded from security claims !!!
+# legacy asymmetric (non-standard)
+# does not provide forward secrecy and is excluded from security claims
 
 def keypair():
-    sk = os.urandom(32)
-    pk = hashlib.sha256(sk).digest()
+    sk = os.urandom(64)
+    pk = hashlib.sha512(sk).digest()
     return (
         base64.b64encode(pk).decode(),
         base64.b64encode(sk).decode()
     )
 
+
 def _kem_encapsulate(pk_b64: str):
     pk = base64.b64decode(pk_b64)
-    r = os.urandom(32)
-    mask = hashlib.sha256(pk).digest()
+    r = os.urandom(64)
+    mask = hashlib.sha512(pk).digest()
     enc = bytes(a ^ b for a, b in zip(r, mask))
-    shared = hashlib.sha256(r + pk).digest()
+    shared = hashlib.sha512(r + pk).digest()
     return enc, shared
+
 
 def _kem_decapsulate(enc: bytes, sk_b64: str):
     sk = base64.b64decode(sk_b64)
-    pk = hashlib.sha256(sk).digest()
-    mask = hashlib.sha256(pk).digest()
+    pk = hashlib.sha512(sk).digest()
+    mask = hashlib.sha512(pk).digest()
     r = bytes(a ^ b for a, b in zip(enc, mask))
-    return hashlib.sha256(r + pk).digest()
+    return hashlib.sha512(r + pk).digest()
