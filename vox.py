@@ -1,4 +1,4 @@
-#  Vox Encryption Module        v1.7
+#  Vox Encryption Module      v1.7.1
 #  Documentation          jts.gg/vox
 #  License         r2.jts.gg/license
 #
@@ -18,7 +18,7 @@
 #  - repeated encryption of identical plaintext with identical
 #    associated data reveals equality only
 #  - authenticity is always preserved
-#  - recommended maximum data encrypted per key: 2^32 bytes
+#  - recommended maximum data encrypted per key: 2^40 bytes (1TB) - hard limit: 2^46 bytes (64TB)
 
 import os
 import hashlib
@@ -198,7 +198,7 @@ def _derive_keystream(
     while len(out) < length:
         block = hmac.new(
             key,
-            nonce + counter.to_bytes(4, "big"),
+            nonce + counter.to_bytes(5, "big"),
             hashlib.sha512
         ).digest()
         out.extend(block)
