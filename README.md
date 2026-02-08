@@ -1,99 +1,49 @@
-# Vox Encryption Module v1.3
+# Vox Encryption Module v1.7.1
 
-Vox is a password-based stream encryption library implemented in Python.
-It derives a cryptographic keystream from a passkey using a KDF and SHA-256,
-these keys are seemingly random and are the same length as the input data.
-The input data is then encrypted using the keystream, via XOR, and finally provides 
-integrity using HMAC-SHA256. This encryption method is comparable to OTP (One Time Pad)
+## Documentation and License
+This module implements a misuse-resistant AEAD (Authenticated Encryption with Associated Data) using HMAC-SHA512 for PRF, PBKDF2-HMAC-SHA512 for key stretching, and HKDF-Expand (RFC 5869) for key separation. It is designed to provide confidentiality and authenticity of data in transit, nonce misuse resistance, and key separation.
 
----
+Documentation: [jts.gg/vox](http://jts.gg/vox)  
+License: [r2.jts.gg/license](http://r2.jts.gg/license)
 
-## Security Model
+## Security Properties
+- AEAD confidentiality and authenticity
+- Nonce misuse resistance (SIV)
+- Key separation
+- RNG failure resistance
 
-### Threat Model
-- Assume ALL asymmetric standardized Encryption Algorithms/Schemas are compromised
+## Misuse Bounds and Limits
+- Confidentiality is preserved under arbitrary nonce reuse.
+- Repeated encryption of identical plaintext with identical associated data reveals equality only.
+- Authenticity is always preserved.
+- Recommended maximum data encrypted per key: 2^40 bytes (1TB) - hard limit: 2^46 bytes (64TB).
 
-### Key Derivation
-- Passkeys are processed using PBKDF2-HMAC-SHA256
-- 300,000 iterations
-- 32-byte random salt per encryption
-- Produces a fixed 256-bit master key
+## Comparison to Other AES Encryption
+| Property | Vox Encryption Module | AES Encryption |
+| --- | --- | --- |
+| Key Size | 512 bits | 256 bits |
+| Block Size | 512 bits | 128 bits |
+| Misuse Resistance | High | Low |
+| Speed | Slow | Fast |
+| Security Claims | High | Medium |
 
-Purpose:
-- Slow offline password guessing
-- Prevent precomputation and rainbow tables
-- Allow safe passkey reuse
-
----
-
-### Keystream Generation
-- SHA-256 hash-chain expansion
-- Deterministic per `(passkey, salt)`
-- Length exactly matches plaintext
-- Context separation (`enc` / `mac`) ensures key independence
-
-Purpose:
-- Stream-cipher style encryption
-- No keystream reuse
-- No structural leakage
-
----
-
-### Encryption
-- Plaintext is XORed with the derived keystream
-- Equivalent to a stream cipher
-
----
-
-### Integrity & Authentication
-- Encrypt-then-MAC using HMAC-SHA256
-- MAC covers `(salt || ciphertext)`
-- Constant-time verification on decrypt
-
-Guarantees:
-- Tampering is detected
-- Wrong passkeys fail cleanly
-- No silent corruption
-
----
-
-## Threat Model
-
-### Protects Against
-- Passive ciphertext inspection
-- Offline brute-force attacks (KDF-bounded)
-- Ciphertext modification
-- Bit-flipping attacks
-- Keystream reuse
-
----
-
-## What Vox Is
-- Password-based stream encryption
-- Library-friendly
-- No stored secrets
-- Salted, authenticated, KDF-hardened
-
----
-
-## Comparison to AES-256-GCM
-
-| Property | Vox v1.3 | AES-256-GCM |
-|-------|---------|-------------|
-| Security type | Computational | Computational |
-| Password support | Yes (PBKDF2) | Yes (PBKDF2 / Argon2) |
-| Integrity | HMAC-SHA256 | Built-in AEAD |
-| Keystream reuse safety | Yes (salted) | Yes (nonce) |
-
-Vox can be **cryptographically comparable** to AES-256 when used with a
-high-entropy passkey.
-
----
-
-## Usage
-
+## Usage Guide
+To use this module, you need to have Python 3.6 or later installed on your system. You can install it using pip:
+```bash
+pip install vox-encryption
+```
+Once the module is installed, you can import and use its functions in your code like so:
 ```python
-from vox import encrypt, decrypt
+from vox_encryption import encrypt, decrypt
 
-ciphertext = encrypt("hello world", "my-strong-passkey")
-plaintext = decrypt(ciphertext, "my-strong-passkey")
+# Encrypt a message
+ciphertext = encrypt("Hello, World", "mysecretpassword")
+print(f"Ciphertext: {ciphertext}")
+
+# Decrypt the message
+plaintext = decrypt(ciphertext, "mysecretpassword")
+print(f"Plaintext: {plaintext}")
+```
+Remember to replace `"Hello, World"` and `"mysecretpassword"` with your actual data and password. The encrypted ciphertext is a byte string that can be stored or transmitted securely. To decrypt it, you need the same password used for encryption. 
+
+For more advanced usage, such as using symmetric key encryption (SKE) instead of AEAD, or encapsulating keys with public-key encryption (KEM), please refer to the module's documentation.
