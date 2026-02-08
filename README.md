@@ -28,13 +28,11 @@ License: [r2.jts.gg/license](http://r2.jts.gg/license)
 | Security Claims | High | Medium |
 
 ## Usage Guide
-To use this module, you need to have Python 3.6 or later installed on your system. You can install it using pip:
-```bash
-pip install vox-encryption
-```
+To use this module, you need to have Python 3.6 or later installed on your system.
+
 Once the module is installed, you can import and use its functions in your code like so:
 ```python
-from vox_encryption import encrypt, decrypt
+from vox import encrypt, decrypt
 
 # Encrypt a message
 ciphertext = encrypt("Hello, World", "mysecretpassword")
