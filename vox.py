@@ -1,4 +1,4 @@
-#  Vox Encryption Module      v1.7.1
+#  Vox Encryption Module      v1.7.2
 #  Documentation          jts.gg/vox
 #  License         r2.jts.gg/license
 #
@@ -14,7 +14,39 @@
 #    - RNG failure resistance
 #
 #  misuse bounds and limits:
-#  - confidentiality is preserved under arbitrary nonce reuse
+  File "/home/jt/Desktop/vault/vault.py", line 52, in <module>
+    main()
+    ~~~~^^
+  File "/home/jt/Desktop/vault/vault.py", line 44, in main
+    os.rmdir("vault/")  # Clean up the vault directory
+    ~~~~~~~~^^^^^^^^^^
+OSError: [Errno 39] Directory not empty: 'vault/'
+jt@thinkpad:~/Desktop/vault$ python3 vault.py 
+
+JT's VAULT
+
+lock or unlock? >> unlock
+unlock key >> pass
+Traceback (most recent call last):
+  File "/home/jt/Desktop/vault/vault.py", line 52, in <module>
+
+#  - confidentiality is preserved under arbitrary nonce
+  File "/home/jt/Desktop/vault/vault.py", line 52, in <module>
+    main()
+    ~~~~^^
+  File "/home/jt/Desktop/vault/vault.py", line 44, in main
+    os.rmdir("vault/")  # Clean up the vault directory
+    ~~~~~~~~^^^^^^^^^^
+OSError: [Errno 39] Directory not empty: 'vault/'
+jt@thinkpad:~/Desktop/vault$ python3 vault.py 
+
+JT's VAULT
+
+lock or unlock? >> unlock
+unlock key >> pass
+Traceback (most recent call last):
+  File "/home/jt/Desktop/vault/vault.py", line 52, in <module>
+ reuse
 #  - repeated encryption of identical plaintext with identical
 #    associated data reveals equality only
 #  - authenticity is always preserved
@@ -59,16 +91,32 @@ def _get_context(passkey: bytes) -> VoxContext:
 # public API
 
 def encrypt(
-    plaintext: str,
+    plaintext: bytes,
     passkey: str,
     *,
     associated_data: bytes = b"",
     asym: bool = False
+  File "/home/jt/Desktop/vault/vault.py", line 52, in <module>
+    main()
+    ~~~~^^
+  File "/home/jt/Desktop/vault/vault.py", line 44, in main
+    os.rmdir("vault/")  # Clean up the vault directory
+    ~~~~~~~~^^^^^^^^^^
+OSError: [Errno 39] Directory not empty: 'vault/'
+jt@thinkpad:~/Desktop/vault$ python3 vault.py 
+
+JT's VAULT
+
+lock or unlock? >> unlock
+unlock key >> pass
+Traceback (most recent call last):
+  File "/home/jt/Desktop/vault/vault.py", line 52, in <module>
+
 ) -> bytes:
     # encrypts plaintext using AEAD
     # associated_data is authenticated but not encrypted
 
-    pt = plaintext.encode("utf-8")
+    pt = plaintext
 
     if asym:
         enc, shared = _kem_encapsulate(passkey)
@@ -99,7 +147,7 @@ def decrypt(
 
     ctx = _get_context(passkey.encode())
     pt = _aead_decrypt(ctx, ciphertext, associated_data)
-    return pt.decode("utf-8")
+    return pt
 
 # AEAD core
 
